@@ -2,64 +2,71 @@ import { useState } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import ItineraryResult from './components/ItineraryResult';
+import axios from 'axios'; // This is correct
 
 function App() {
   const [itinerary, setItinerary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [tripRequest, setTripRequest] = useState(null);
-  // NEW: State to store and display error messages
   const [error, setError] = useState(null);
 
   const handleFormSubmit = async (formData) => {
     setLoading(true);
     setItinerary(null);
-    setError(null); // Clear previous errors
+    setError(null);
     setTripRequest(formData);
-    
-    // Smooth scroll to where the results will appear
-    // Using a slight delay to ensure the UI updates before scrolling
+
+    // Smooth scroll
     setTimeout(() => {
-        const resultSection = document.getElementById('result-section');
-        if (resultSection) {
-            resultSection.scrollIntoView({ behavior: 'smooth' });
-        }
+      const resultSection = document.getElementById('result-section');
+      if (resultSection) {
+        resultSection.scrollIntoView({ behavior: 'smooth' });
+      }
     }, 100);
 
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const response = await axios.post(`${API_URL}/api/itinerary`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+
+      // --- THIS IS THE FIX ---
+      // axios.post(url, data, [config])
+      // 1. The data (formData) is the second argument.
+      // 2. You don't need to stringify it.
+      const response = await axios.post(`${API_URL}/api/itinerary`, formData, {
+        headers: { 'Content-Type': 'application/json' }
       });
+      // --- END OF FIX ---
 
-      // NEW: Check if the response from the server is successful
-      if (!response.ok) {
-        // If not, get the error message from the server's response
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'An unknown error occurred.');
-      }
-
-      const data = await response.json();
-      setItinerary(data);
+      // --- THIS IS THE FIX ---
+      // 3. The JSON data is already in response.data.
+      // 4. You do not call response.json().
+      setItinerary(response.data);
+      // --- END OF FIX ---
 
     } catch (err) {
       console.error('Failed to fetch itinerary:', err);
-      // Set the user-friendly error message to be displayed on the screen
-      setError(err.message);
+
+      // --- IMPROVED ERROR HANDLING ---
+      // Get the error message from the server (if it exists)
+      let errorMessage = 'An unknown error occurred.';
+      if (err.response && err.response.data && err.response.data.message) {
+        errorMessage = err.response.data.message; // Error from our backend
+      } else if (err.message) {
+        errorMessage = err.message; // General network error
+      }
+      setError(errorMessage);
+      // --- END OF ERROR HANDLING ---
+
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    // Changed to bg-slate-50 to match the light theme of the results page
     <div className="min-h-screen bg-slate-50 font-sans flex flex-col">
       <Navbar />
       <main className="flex-grow">
         <Hero onItinerarySubmit={handleFormSubmit} />
         
-        {/* Added an ID here for the scroll-to-view functionality */}
         <div id="result-section" className="container mx-auto px-4 py-12">
           {loading && (
             <div className="text-center text-gray-700">
@@ -68,11 +75,10 @@ function App() {
             </div>
           )}
 
-          {/* NEW: Display the error message if one occurs */}
           {error && (
             <div className="max-w-md mx-auto text-center bg-red-100 border border-red-300 text-red-800 px-4 py-3 rounded-lg">
-                <strong className="font-bold">Oops! </strong>
-                <span className="block sm:inline">{error}</span>
+              <strong className="font-bold">Oops! </strong>
+              <span className="block sm:inline">{error}</span>
             </div>
           )}
 
