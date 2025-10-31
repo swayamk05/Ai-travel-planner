@@ -1,15 +1,17 @@
 import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
+import dotenv from "dotenv";
 import { GoogleGenerativeAI } from '@google/generative-ai';
+dotenv.config();
 
 // --- Configuration ---
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT;
 
 // --- IMPORTANT: PASTE YOUR API KEYS HERE ---
-const GEMINI_API_KEY = "AIzaSyAG38pEChI9ZOOtMHFuYkOap-hvY_poJmg";
-const PEXELS_API_KEY = "4ND0gj12cergZGDzqu9W0ufIVsVJYibbsMXJrfHHloEzmbW5TLlCHHFy";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
 // ----------------------------------------------------
 
 // --- Middleware ---
@@ -18,11 +20,11 @@ app.use(express.json());
 
 // --- Initialize Gemini ---
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 // --- Helper Functions ---
 const getImageUrl = async (query) => {
-    if (!PEXELS_API_KEY || PEXELS_API_KEY === "YOUR_PEXELS_API_KEY_HERE") {
+    if (!PEXELS_API_KEY || PEXELS_API_KEY === PEXELS_API_KEY) {
         return `https://placehold.co/600x400/e2e8f0/64748b?text=${query.replace(/\s/g, '+')}`;
     }
     try {
@@ -41,6 +43,7 @@ app.post('/api/itinerary', async (req, res) => {
     console.log('Received final PRO request:', req.body);
     const maxRetries = 3;
     let lastError = null;
+    const USD_TO_INR_RATE = 83.5;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
@@ -49,7 +52,7 @@ app.post('/api/itinerary', async (req, res) => {
             const end = new Date(endDate);
             const tripDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
             if (tripDays <= 0) { return res.status(400).json({ message: "End date must be after start date." }); }
-
+             const budgetInINR = Math.round(parseFloat(budget) * USD_TO_INR_RATE);
             // --- FINAL, STRICTEST PROMPT ---
             const prompt = `
                 You are a travel agent AI that ONLY responds in perfect JSON.
@@ -57,7 +60,7 @@ app.post('/api/itinerary', async (req, res) => {
                 - Origin: ${source}, Destination: ${destination}
                 - Dates: ${startDate} to ${endDate} (${tripDays} days)
                 - Travelers: ${people}
-                - Budget: $${budget} USD per person.
+                - Budget: ₹${budgetInINR} INR per person.
                 - Transport Preference: ${transport}.
 
                 **CRITICAL INSTRUCTIONS FOR JSON STRUCTURE:**
@@ -65,7 +68,9 @@ app.post('/api/itinerary', async (req, res) => {
                 2.  Each object inside the "days" array MUST have the keys: "day" (a number), "title" (a string), "activities" (an array), and "foodSuggestion" (a string).
                 3.  Each object inside the "activities" array MUST have keys: "time", "name", "description", "rating", "positive_review", "negative_review".
                 4.  Each object inside "suggested_hotels" MUST have keys: "name", "price_per_night" (as a number, e.g., 150), and "rating".
-                5.  Each object inside "suggested_transport" MUST have keys: "name" (be specific, e.g., "IndiGo 6E-2045"), "price_per_person" (as a number), "rating", and "duration".
+                5.  Each object inside "suggested_transport" MUST have keys: "name" (be specific, e.g., "IndiGo 6E-2045"), "price_per_person" (as a number), "rating", and "duration"
+                6.All monetary values MUST be in Indian Rupees (INR).
+.
                 
                 Do not include any text, explanations, or markdown formatting like \`\`\`json before or after the JSON object.
             `;
@@ -116,4 +121,3 @@ app.post('/api/itinerary', async (req, res) => {
 app.listen(port, () => {
     console.log(`Server is running on port: ${port}`);
 });
-

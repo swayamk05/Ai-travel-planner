@@ -1,6 +1,11 @@
 import { Star, ThumbsUp, ThumbsDown, Hotel, Plane, Clock, Utensils } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+// --- NEW ---
+// Add your conversion rate here
+const USD_TO_INR_RATE = 83.5;
+// --- END NEW ---
+
 // Helper to format time to 12-hour AM/PM format
 const formatTime12Hour = (timeString) => {
     if (!timeString || !timeString.includes(':')) return 'All Day';
@@ -27,6 +32,18 @@ const StarRating = ({ rating }) => {
 
 // Main Itinerary Result Component
 const ItineraryResult = ({ data, startDate }) => {
+
+    if (!data) {
+        return (
+            <div className="max-w-4xl mx-auto py-16 px-4 text-center">
+                <h2 className="text-2xl font-semibold text-gray-600">
+                    Generating your itinerary...
+                </h2>
+                <p className="text-gray-500">Please wait a moment.</p>
+            </div>
+        );
+    }
+
     const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } };
     const itemVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5 } } };
 
@@ -36,12 +53,25 @@ const ItineraryResult = ({ data, startDate }) => {
                 <motion.div variants={itemVariants} className="text-center p-6 bg-white rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-cyan-400 to-teal-500"></div>
                     <h1 className="text-4xl font-extrabold mb-2 text-gray-800">{data.title}</h1>
-                    <p className="text-md text-gray-500">{data.details}</p>
+
+                    {data.details && (
+                        <div className="text-md text-gray-600 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 mt-4 text-left px-4">
+                            <p><strong>From:</strong> {data.details.origin}</p>
+                            <p><strong>To:</strong> {data.details.destination}</p>
+                            <p><strong>Travelers:</strong> {data.details.travelers}</p>
+                            
+                            {/* --- CHANGED --- */}
+                            <p><strong>Budget:</strong> ₹{Math.round(data.details.budget_per_person_usd * USD_TO_INR_RATE)} <span className="text-sm text-gray-500">/ person</span></p>
+                            <p><strong>Total:</strong> ₹{Math.round(data.details.total_budget_usd * USD_TO_INR_RATE)}</p>
+                            {/* --- END CHANGED --- */}
+
+                            <p><strong>Transport:</strong> {data.details.transport_preference}</p>
+                        </div>
+                    )}
                 </motion.div>
 
                 <div className="space-y-10">
                     {data.days.map((day, dayIndex) => {
-                        // Calculate the date for the current day
                         const currentDate = new Date(startDate);
                         currentDate.setDate(currentDate.getDate() + dayIndex);
                         const formattedDate = currentDate.toLocaleDateString('en-US', {
@@ -62,7 +92,7 @@ const ItineraryResult = ({ data, startDate }) => {
                                             </div>
                                             <div className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 hover:shadow-lg transition-shadow duration-300">
                                                 <div className="flex flex-col md:flex-row gap-5">
-                                                    <img src={activity.image_url} alt={activity.name} className="w-full md:w-44 h-40 object-cover rounded-lg" onError={(e) => e.target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=Image+Not+Found'}/>
+                                                    <img src={activity.image_url} alt={activity.name} className="w-full md:w-44 h-40 object-cover rounded-lg" onError={(e) => e.target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=Image+Not+Found'} />
                                                     <div className="flex-1">
                                                         <p className="font-semibold text-teal-600 text-sm mb-1">{formatTime12Hour(activity.time)}</p>
                                                         <h3 className="text-xl font-bold text-gray-800 mb-1">{activity.name}</h3>
@@ -88,7 +118,13 @@ const ItineraryResult = ({ data, startDate }) => {
                     <h2 className="text-2xl font-bold mb-5 text-center flex items-center justify-center gap-2 text-gray-700"><Hotel /> Hotel Suggestions</h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {data.suggested_hotels.map((hotel, index) => (
-                            <div key={index} className="bg-slate-50 rounded-lg overflow-hidden border border-gray-200 hover:border-teal-400 transition-colors duration-300"><img src={hotel.image_url} alt={hotel.name} className="w-full h-36 object-cover" onError={(e) => e.target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=Image+Error'} /><div className="p-3"><h3 className="font-bold text-md text-gray-800 truncate">{hotel.name}</h3><div className="flex items-center my-1 gap-2"><StarRating rating={hotel.rating} /><span className="text-xs font-semibold text-gray-500">{hotel.rating}</span></div><p className="text-lg font-semibold text-teal-600">${hotel.price_per_night} <span className="text-sm text-gray-500 font-normal">/ night</span></p></div></div>
+                            <div key={index} className="bg-slate-50 rounded-lg overflow-hidden border border-gray-200 hover:border-teal-400 transition-colors duration-300"><img src={hotel.image_url} alt={hotel.name} className="w-full h-36 object-cover" onError={(e) => e.target.src = 'https://placehold.co/600x400/e2e8f0/64748b?text=Image+Error'} /><div className="p-3"><h3 className="font-bold text-md text-gray-800 truncate">{hotel.name}</h3><div className="flex items-center my-1 gap-2"><StarRating rating={hotel.rating} /><span className="text-xs font-semibold text-gray-500">{hotel.rating}</span></div>
+                                
+                                {/* --- CHANGED --- */}
+                                <p className="text-lg font-semibold text-teal-600">₹{Math.round(hotel.price_per_night * USD_TO_INR_RATE)} <span className="text-sm text-gray-500 font-normal">/ night</span></p>
+                                {/* --- END CHANGED --- */}
+
+                            </div></div>
                         ))}
                     </div>
                 </motion.div>
@@ -96,7 +132,13 @@ const ItineraryResult = ({ data, startDate }) => {
                     <h2 className="text-2xl font-bold mb-5 text-center flex items-center justify-center gap-2 text-gray-700"><Plane /> Transport Options</h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {data.suggested_transport.map((transport, index) => (
-                            <div key={index} className="bg-slate-50 p-3 rounded-lg border border-gray-200 hover:border-teal-400 transition-colors duration-300"><h3 className="font-bold text-md text-gray-800">{transport.name}</h3><p className="text-gray-500 text-xs mb-1">{transport.duration}</p><div className="flex items-center gap-2"><StarRating rating={transport.rating} /><span className="text-xs font-semibold text-gray-500">{transport.rating}</span></div><p className="text-lg font-semibold text-teal-600 mt-2 text-right">${transport.price_per_person} <span className="text-sm text-gray-500 font-normal">/ person</span></p></div>
+                            <div key={index} className="bg-slate-50 p-3 rounded-lg border border-gray-200 hover:border-teal-400 transition-colors duration-300"><h3 className="font-bold text-md text-gray-800">{transport.name}</h3><p className="text-gray-500 text-xs mb-1">{transport.duration}</p><div className="flex items-center gap-2"><StarRating rating={transport.rating} /><span className="text-xs font-semibold text-gray-500">{transport.rating}</span></div>
+                                
+                                {/* --- CHANGED --- */}
+                                <p className="text-lg font-semibold text-teal-600 mt-2 text-right">₹{Math.round(transport.price_per_person * USD_TO_INR_RATE)} <span className="text-sm text-gray-500 font-normal">/ person</span></p>
+                                {/* --- END CHANGED --- */}
+
+                            </div>
                         ))}
                     </div>
                 </motion.div>
@@ -106,4 +148,3 @@ const ItineraryResult = ({ data, startDate }) => {
 };
 
 export default ItineraryResult;
-
