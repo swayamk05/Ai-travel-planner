@@ -17,8 +17,9 @@ class PlaceResearchAgent:
     name = "Place Research Agent"
     description = "Researches real information about places - visit duration, opening hours, special events, tips"
     
-    def __init__(self, serper_api_key: str):
+    def __init__(self, serper_api_key: str, rapidapi_key: str = None):
         self.serper_api_key = serper_api_key
+        self.rapidapi_key = rapidapi_key
         self.headers = {
             "X-API-KEY": serper_api_key,
             "Content-Type": "application/json"

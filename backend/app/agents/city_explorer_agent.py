@@ -22,8 +22,9 @@ class CityExplorerAgent:
     name = "City Explorer Agent"
     description = "Researches famous food, local specialties, festivals, and city highlights"
     
-    def __init__(self, serper_api_key: str, groq_api_key: str = None):
+    def __init__(self, serper_api_key: str, groq_api_key: str = None, rapidapi_key: str = None):
         self.serper_api_key = serper_api_key
+        self.rapidapi_key = rapidapi_key
         self.groq_api_key = groq_api_key or os.getenv("GROQ_API_KEY")
         self.groq_client = AsyncGroq(api_key=self.groq_api_key) if self.groq_api_key else None
         self.headers = {

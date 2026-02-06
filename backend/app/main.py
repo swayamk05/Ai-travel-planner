@@ -9,6 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from app.agents.orchestrator import AgentOrchestrator
+from app.agents.travel_booking_agent import TravelBookingAgent
+from app.agents.hotel_booking_agent import HotelBookingAgent
 from app.config import get_settings
 from app.models import ItineraryRequest, ItineraryResponse
 
@@ -31,6 +33,21 @@ orchestrator = AgentOrchestrator(
     groq_api_key=settings.groq_api_key,
     serper_api_key=settings.serper_api_key,
     weather_api_key=settings.openweather_api_key,
+    rapidapi_key=settings.rapidapi_key,
+)
+
+# Initialize Booking Agents with multiple API keys for real data
+travel_booking_agent = TravelBookingAgent(
+    groq_api_key=settings.groq_api_key,
+    serper_api_key=settings.serper_api_key,
+    rapidapi_key=settings.rapidapi_key,
+    amadeus_api_key=settings.amadeus_api_key,
+    amadeus_api_secret=settings.amadeus_api_secret
+)
+hotel_booking_agent = HotelBookingAgent(
+    groq_api_key=settings.groq_api_key,
+    serper_api_key=settings.serper_api_key,
+    rapidapi_key=settings.rapidapi_key
 )
 
 # Store current itinerary for chat/replanning
@@ -246,3 +263,149 @@ async def modify_itinerary(request: ModifyRequest):
             explanation=f"Error: {str(exc)}",
             modified_itinerary=None
         )
+
+
+# ===== Travel Booking Models =====
+class TravelSearchRequest(BaseModel):
+    origin: str
+    destination: str
+    travel_date: str  # YYYY-MM-DD
+    travel_type: str = "all"  # "flight", "train", "bus", "all"
+    budget: Optional[int] = None  # Per person budget in INR
+    passengers: int = 1
+
+
+class TravelSearchResponse(BaseModel):
+    success: bool
+    origin: str
+    destination: str
+    travel_date: str
+    passengers: int
+    budget: Optional[int]
+    flights: List[dict]
+    trains: List[dict]
+    buses: List[dict]
+    search_summary: str
+
+
+# ===== Hotel Booking Models =====
+class HotelSearchRequest(BaseModel):
+    destination: str
+    check_in: str  # YYYY-MM-DD
+    check_out: str  # YYYY-MM-DD
+    guests: int = 2
+    rooms: int = 1
+    budget_per_night: Optional[int] = None  # Budget per night in INR
+    hotel_type: str = "all"  # "budget", "mid-range", "luxury", "all"
+
+
+class HotelSearchResponse(BaseModel):
+    success: bool
+    destination: str
+    check_in: str
+    check_out: str
+    nights: int
+    guests: int
+    rooms: int
+    budget_per_night: Optional[int]
+    hotels: List[dict]
+    search_summary: str
+
+
+# ===== Travel Booking Endpoint =====
+@app.post("/api/search/travel", response_model=TravelSearchResponse)
+async def search_travel_options(request: TravelSearchRequest):
+    """
+    Search for travel options (flights, trains, buses) with best deals.
+    
+    The Travel Booking Agent:
+    1. Searches for available options
+    2. Analyzes prices and deals
+    3. Returns best 3 options for each transport type
+    """
+    logger.info(f"✈️ Travel search: {request.origin} → {request.destination} on {request.travel_date}")
+    
+    try:
+        result = await travel_booking_agent.search_travel_options(
+            origin=request.origin,
+            destination=request.destination,
+            travel_date=request.travel_date,
+            travel_type=request.travel_type,
+            budget=request.budget,
+            passengers=request.passengers
+        )
+        
+        return TravelSearchResponse(
+            success=True,
+            origin=result.get("origin", request.origin),
+            destination=result.get("destination", request.destination),
+            travel_date=result.get("travel_date", request.travel_date),
+            passengers=result.get("passengers", request.passengers),
+            budget=result.get("budget"),
+            flights=result.get("flights", []),
+            trains=result.get("trains", []),
+            buses=result.get("buses", []),
+            search_summary=result.get("search_summary", "")
+        )
+        
+    except Exception as exc:
+        logger.error(f"Travel search error: {exc}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+# ===== Hotel Booking Endpoint =====
+@app.post("/api/search/hotels", response_model=HotelSearchResponse)
+async def search_hotels(request: HotelSearchRequest):
+    """
+    Search for hotels with review analysis and best value recommendations.
+    
+    The Hotel Booking Agent:
+    1. Searches for hotels in the destination
+    2. Fetches and analyzes reviews for each hotel
+    3. Evaluates based on ratings, reviews, and pricing
+    4. Returns best 3 hotels with detailed analysis
+    """
+    logger.info(f"🏨 Hotel search: {request.destination} ({request.check_in} to {request.check_out})")
+    
+    try:
+        result = await hotel_booking_agent.search_hotels(
+            destination=request.destination,
+            check_in=request.check_in,
+            check_out=request.check_out,
+            guests=request.guests,
+            rooms=request.rooms,
+            budget_per_night=request.budget_per_night,
+            hotel_type=request.hotel_type
+        )
+        
+        return HotelSearchResponse(
+            success=True,
+            destination=result.get("destination", request.destination),
+            check_in=result.get("check_in", request.check_in),
+            check_out=result.get("check_out", request.check_out),
+            nights=result.get("nights", 1),
+            guests=result.get("guests", request.guests),
+            rooms=result.get("rooms", request.rooms),
+            budget_per_night=result.get("budget_per_night"),
+            hotels=result.get("hotels", []),
+            search_summary=result.get("search_summary", "")
+        )
+        
+    except Exception as exc:
+        logger.error(f"Hotel search error: {exc}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.get("/api/hotel/{hotel_name}")
+async def get_hotel_details(hotel_name: str, destination: str):
+    """Get detailed information about a specific hotel."""
+    logger.info(f"🏨 Hotel details: {hotel_name} in {destination}")
+    
+    try:
+        details = await hotel_booking_agent.get_hotel_details(hotel_name, destination)
+        return {"success": True, "hotel": details}
+    except Exception as exc:
+        logger.error(f"Hotel details error: {exc}")
+        raise HTTPException(status_code=500, detail=str(exc))

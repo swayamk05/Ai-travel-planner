@@ -8,6 +8,8 @@ Agents:
 - DiningAgent: Finds restaurants for meals with ratings and must-try dishes
 - CityExplorerAgent: Researches famous food, local tips, shopping, events
 - ReplanningAgent: Handles user modifications via chat
+- TravelBookingAgent: Finds best flights, trains, buses with deals
+- HotelBookingAgent: Finds best hotels with review analysis
 - AgentOrchestrator: Coordinates all agents for comprehensive trip planning
 """
 
@@ -17,6 +19,8 @@ from app.agents.photo_review_agent import PhotoReviewAgent
 from app.agents.dining_agent import DiningAgent
 from app.agents.city_explorer_agent import CityExplorerAgent
 from app.agents.replanning_agent import ReplanningAgent
+from app.agents.travel_booking_agent import TravelBookingAgent
+from app.agents.hotel_booking_agent import HotelBookingAgent
 from app.agents.orchestrator import AgentOrchestrator
 
 __all__ = [
@@ -26,5 +30,7 @@ __all__ = [
     "DiningAgent",
     "CityExplorerAgent",
     "ReplanningAgent",
+    "TravelBookingAgent",
+    "HotelBookingAgent",
     "AgentOrchestrator",
 ]

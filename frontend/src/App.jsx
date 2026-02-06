@@ -1,11 +1,25 @@
 import { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import ItineraryResult from './components/ItineraryResult';
 import ChatBox from './components/ChatBox';
-import axios from 'axios'; // This is correct
+import FloatingChatbot from './components/FloatingChatbot';
+import { 
+  HowItWorks, 
+  Features, 
+  PopularDestinations, 
+  Stats, 
+  Testimonials, 
+  CTASection, 
+  Footer 
+} from './components/HomePageSections';
+import TravelBooking from './pages/TravelBooking';
+import HotelBooking from './pages/HotelBooking';
+import axios from 'axios';
 
-function App() {
+// Main Home Page Component
+function HomePage() {
   const [itinerary, setItinerary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [tripRequest, setTripRequest] = useState(null);
@@ -24,7 +38,7 @@ function App() {
 
     // Smooth scroll
     setTimeout(() => {
-      const resultSection = document.getElementById('result-section');
+      const resultSection = document.getElementById('itinerary-result');
       if (resultSection) {
         resultSection.scrollIntoView({ behavior: 'smooth' });
       }
@@ -33,36 +47,24 @@ function App() {
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-      // --- THIS IS THE FIX ---
-      // axios.post(url, data, [config])
-      // 1. The data (formData) is the second argument.
-      // 2. You don't need to stringify it.
       const response = await axios.post(`${API_URL}/api/itinerary`, formData, {
         headers: { 'Content-Type': 'application/json' }
       });
-      // --- END OF FIX ---
 
-      // --- THIS IS THE FIX ---
-      // 3. The JSON data is already in response.data.
-      // 4. You do not call response.json().
       setItinerary(response.data);
-      // --- END OF FIX ---
 
     } catch (err) {
       console.error('Failed to fetch itinerary:', err);
 
-      // --- IMPROVED ERROR HANDLING ---
-      // Get the error message from the server (if it exists)
       let errorMessage = 'An unknown error occurred.';
       if (err.response && err.response.data && err.response.data.message) {
-        errorMessage = err.response.data.message; // Error from our backend
+        errorMessage = err.response.data.message;
       } else if (err.response && err.response.data && err.response.data.detail) {
-        errorMessage = err.response.data.detail; // FastAPI error
+        errorMessage = err.response.data.detail;
       } else if (err.message) {
-        errorMessage = err.message; // General network error
+        errorMessage = err.message;
       }
       setError(errorMessage);
-      // --- END OF ERROR HANDLING ---
 
     } finally {
       setLoading(false);
@@ -114,6 +116,18 @@ function App() {
 
           {itinerary && <ItineraryResult data={itinerary} />}
         </div>
+
+        {/* Additional Home Page Sections */}
+        {!itinerary && !loading && (
+          <>
+            <HowItWorks />
+            <Features />
+            <PopularDestinations />
+            <Stats />
+            <Testimonials />
+            <CTASection />
+          </>
+        )}
       </main>
       
       {/* Chat Box - Only show when itinerary exists */}
@@ -123,7 +137,22 @@ function App() {
           onItineraryUpdate={handleItineraryUpdate}
         />
       )}
+      
+      <Footer />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <FloatingChatbot />
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/travel" element={<TravelBooking />} />
+        <Route path="/hotels" element={<HotelBooking />} />
+      </Routes>
+    </Router>
   );
 }
 

@@ -38,11 +38,13 @@ class AgentOrchestrator:
         groq_api_key: str,
         serper_api_key: str,
         weather_api_key: str,
+        rapidapi_key: str = "",
         model: str = "llama-3.3-70b-versatile"
     ):
         self.groq_api_key = groq_api_key
         self.serper_api_key = serper_api_key
         self.weather_api_key = weather_api_key
+        self.rapidapi_key = rapidapi_key
         self.model = model
         
         # Initialize LLM client for main planning
@@ -50,10 +52,10 @@ class AgentOrchestrator:
         
         # Initialize all specialized agents
         self.weather_agent = WeatherAgent(api_key=weather_api_key)
-        self.place_research_agent = PlaceResearchAgent(serper_api_key=serper_api_key)
-        self.photo_review_agent = PhotoReviewAgent(serper_api_key=serper_api_key)
-        self.dining_agent = DiningAgent(serper_api_key=serper_api_key)
-        self.city_explorer_agent = CityExplorerAgent(serper_api_key=serper_api_key, groq_api_key=groq_api_key)
+        self.place_research_agent = PlaceResearchAgent(serper_api_key=serper_api_key, rapidapi_key=rapidapi_key)
+        self.photo_review_agent = PhotoReviewAgent(serper_api_key=serper_api_key, rapidapi_key=rapidapi_key)
+        self.dining_agent = DiningAgent(serper_api_key=serper_api_key, rapidapi_key=rapidapi_key)
+        self.city_explorer_agent = CityExplorerAgent(serper_api_key=serper_api_key, groq_api_key=groq_api_key, rapidapi_key=rapidapi_key)
         self.replanning_agent = ReplanningAgent(groq_api_key=groq_api_key, model=model)
         
         print("🤖 [Orchestrator] Multi-Agent System Initialized")

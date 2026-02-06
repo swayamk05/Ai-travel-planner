@@ -1,5 +1,92 @@
-import { MapPin, Star, Sun, Thermometer, Utensils, Clock, Camera, Navigation, Lightbulb, Briefcase, Phone, Globe, IndianRupee, AlertTriangle, Info, Ticket } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { MapPin, Star, Sun, Thermometer, Utensils, Clock, Camera, Navigation, Lightbulb, Briefcase, Phone, Globe, IndianRupee, AlertTriangle, Info, Ticket, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// Image Lightbox Modal Component
+const ImageLightbox = ({ images, currentIndex, onClose, onNext, onPrev, placeName }) => {
+    if (!images || images.length === 0) return null;
+    
+    return (
+        <AnimatePresence>
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+                onClick={onClose}
+            >
+                {/* Close Button */}
+                <button 
+                    onClick={onClose}
+                    className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-50"
+                >
+                    <X className="w-6 h-6" />
+                </button>
+                
+                {/* Image Counter */}
+                <div className="absolute top-4 left-4 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full text-white text-sm">
+                    {currentIndex + 1} / {images.length}
+                </div>
+                
+                {/* Place Name */}
+                <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-white/10 backdrop-blur-sm px-6 py-3 rounded-xl text-white text-center">
+                    <p className="font-semibold">{placeName}</p>
+                </div>
+                
+                {/* Navigation Arrows */}
+                {images.length > 1 && (
+                    <>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onPrev(); }}
+                            className="absolute left-4 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+                        >
+                            <ChevronLeft className="w-8 h-8" />
+                        </button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onNext(); }}
+                            className="absolute right-4 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
+                        >
+                            <ChevronRight className="w-8 h-8" />
+                        </button>
+                    </>
+                )}
+                
+                {/* Main Image */}
+                <motion.img
+                    key={currentIndex}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    src={images[currentIndex]}
+                    alt={`${placeName} - Photo ${currentIndex + 1}`}
+                    className="max-h-[85vh] max-w-[90vw] object-contain rounded-lg shadow-2xl"
+                    onClick={(e) => e.stopPropagation()}
+                />
+                
+                {/* Thumbnail Strip */}
+                {images.length > 1 && (
+                    <div className="absolute bottom-24 left-1/2 transform -translate-x-1/2 flex gap-2 px-4 py-2 bg-black/50 backdrop-blur-sm rounded-xl overflow-x-auto max-w-[80vw]">
+                        {images.map((img, idx) => (
+                            <button
+                                key={idx}
+                                onClick={(e) => { e.stopPropagation(); }}
+                                className={`flex-shrink-0 w-16 h-12 rounded-lg overflow-hidden border-2 transition-all ${
+                                    idx === currentIndex ? 'border-white scale-110' : 'border-transparent opacity-60 hover:opacity-100'
+                                }`}
+                            >
+                                <img 
+                                    src={img} 
+                                    alt={`Thumbnail ${idx + 1}`}
+                                    className="w-full h-full object-cover"
+                                />
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </motion.div>
+        </AnimatePresence>
+    );
+};
 
 // Budget is now in INR directly
 const formatIndianCurrency = (amount) => {
@@ -142,11 +229,29 @@ const RestaurantCard = ({ restaurant }) => {
 };
 
 const PlaceCard = ({ place }) => {
+    const [lightboxOpen, setLightboxOpen] = useState(false);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    
     if (!place) return null;
     
     // Check if we have real Google data (has rating AND reviews AND images)
     const hasRealData = place.rating && place.totalReviews && place.images?.length > 0;
     const practicalInfo = place.practicalInfo;
+    
+    const openLightbox = (index) => {
+        setCurrentImageIndex(index);
+        setLightboxOpen(true);
+    };
+    
+    const closeLightbox = () => setLightboxOpen(false);
+    
+    const nextImage = () => {
+        setCurrentImageIndex((prev) => (prev + 1) % place.images.length);
+    };
+    
+    const prevImage = () => {
+        setCurrentImageIndex((prev) => (prev - 1 + place.images.length) % place.images.length);
+    };
     
     return (
         <div className="mt-3 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-4 border border-indigo-100">
@@ -324,19 +429,46 @@ const PlaceCard = ({ place }) => {
                     
                     {place.images?.length > 0 && (
                         <div className="mt-3">
-                            <p className="text-xs text-gray-400 uppercase mb-2">📷 Real Photos</p>
+                            <p className="text-xs text-gray-400 uppercase mb-2 flex items-center gap-1">
+                                📷 Real Photos <span className="text-indigo-500 font-normal">(Click to enlarge)</span>
+                            </p>
                             <div className="flex gap-2 overflow-x-auto pb-1">
                                 {place.images.slice(0, 4).map((img, idx) => (
-                                    <img 
-                                        key={idx} 
-                                        src={img} 
-                                        alt={place.name} 
-                                        className="h-24 w-32 object-cover rounded-lg flex-shrink-0 shadow-sm hover:shadow-md transition-shadow"
-                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                    />
+                                    <button
+                                        key={idx}
+                                        onClick={() => openLightbox(idx)}
+                                        className="relative group flex-shrink-0"
+                                    >
+                                        <img 
+                                            src={img} 
+                                            alt={place.name} 
+                                            className="h-24 w-32 object-cover rounded-lg shadow-sm hover:shadow-xl transition-all duration-300 group-hover:scale-105 cursor-pointer"
+                                            onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
+                                        />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all flex items-center justify-center">
+                                            <Camera className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </div>
+                                        {idx === 3 && place.images.length > 4 && (
+                                            <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+                                                <span className="text-white font-semibold">+{place.images.length - 4}</span>
+                                            </div>
+                                        )}
+                                    </button>
                                 ))}
                             </div>
                         </div>
+                    )}
+                    
+                    {/* Image Lightbox */}
+                    {lightboxOpen && (
+                        <ImageLightbox 
+                            images={place.images}
+                            currentIndex={currentImageIndex}
+                            onClose={closeLightbox}
+                            onNext={nextImage}
+                            onPrev={prevImage}
+                            placeName={place.name}
+                        />
                     )}
                 </div>
             </div>
@@ -346,9 +478,27 @@ const PlaceCard = ({ place }) => {
 
 // Restaurant card for meal schedule items
 const MealRestaurantCard = ({ restaurant, mealType }) => {
+    const [lightboxOpen, setLightboxOpen] = useState(false);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    
     if (!restaurant) return null;
     
     const hasRealData = restaurant.rating && restaurant.images?.length > 0;
+    
+    const openLightbox = (index) => {
+        setCurrentImageIndex(index);
+        setLightboxOpen(true);
+    };
+    
+    const closeLightbox = () => setLightboxOpen(false);
+    
+    const nextImage = () => {
+        setCurrentImageIndex((prev) => (prev + 1) % restaurant.images.length);
+    };
+    
+    const prevImage = () => {
+        setCurrentImageIndex((prev) => (prev - 1 + restaurant.images.length) % restaurant.images.length);
+    };
     
     // Meal type emoji
     const mealEmoji = {
@@ -459,19 +609,41 @@ const MealRestaurantCard = ({ restaurant, mealType }) => {
                     {/* Restaurant Photos */}
                     {restaurant.images?.length > 0 && (
                         <div className="mt-3">
-                            <p className="text-xs text-gray-400 uppercase mb-2">📷 Food & Ambiance</p>
+                            <p className="text-xs text-gray-400 uppercase mb-2 flex items-center gap-1">
+                                📷 Food & Ambiance <span className="text-orange-500 font-normal">(Click to view)</span>
+                            </p>
                             <div className="flex gap-2 overflow-x-auto pb-1">
                                 {restaurant.images.slice(0, 3).map((img, idx) => (
-                                    <img 
-                                        key={idx} 
-                                        src={img} 
-                                        alt={restaurant.name} 
-                                        className="h-20 w-28 object-cover rounded-lg flex-shrink-0 shadow-sm hover:shadow-md transition-shadow"
-                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                    />
+                                    <button
+                                        key={idx}
+                                        onClick={() => openLightbox(idx)}
+                                        className="relative group flex-shrink-0"
+                                    >
+                                        <img 
+                                            src={img} 
+                                            alt={restaurant.name} 
+                                            className="h-20 w-28 object-cover rounded-lg shadow-sm hover:shadow-xl transition-all duration-300 group-hover:scale-105 cursor-pointer"
+                                            onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
+                                        />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all flex items-center justify-center">
+                                            <Camera className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </div>
+                                    </button>
                                 ))}
                             </div>
                         </div>
+                    )}
+                    
+                    {/* Image Lightbox */}
+                    {lightboxOpen && (
+                        <ImageLightbox 
+                            images={restaurant.images}
+                            currentIndex={currentImageIndex}
+                            onClose={closeLightbox}
+                            onNext={nextImage}
+                            onPrev={prevImage}
+                            placeName={restaurant.name}
+                        />
                     )}
                 </div>
             </div>
